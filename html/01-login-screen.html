@@ -1,0 +1,81 @@
+<script>
+  // Redirect when this fragment is opened directly in the browser unless ?raw=1 is present.
+  try {
+    const raw = new URLSearchParams(window.location.search).get('raw');
+    if (window.top === window && /\/html\//i.test(window.location.pathname.replace(/\\/g, '/')) && raw !== '1') {
+      window.location.replace('../index.html');
+    }
+  } catch (e) {
+    // If URL parsing fails in some environments, fall back to redirect to index.
+    if (window.top === window && /\/html\//i.test(window.location.pathname.replace(/\\/g, '/'))) window.location.replace('../index.html');
+  }
+</script>
+
+<div id="login-screen" class="login-screen">
+  <div class="login-bg">
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+  </div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon-wrap logo-icon-media">
+        <img src="academeet-logo.svg" alt="AcadeMeet logo" class="logo-image" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+        <span class="logo-fallback">Am</span>
+      </div>
+      <span class="logo-text-main">AcadeMeet</span>
+    </div>
+    <h1 class="login-title">Welcome Back</h1>
+    <p class="login-sub">Select your account to continue</p>
+    <div class="user-list" id="user-list"></div>
+  </div>
+  
+  <!-- Right-side overview panel for SQA/QA guidance -->
+  <aside class="login-overview" role="region" aria-label="AcadeMeet overview for testers">
+    <h4>AcadeMeet — Quick Overview</h4>
+    <div class="muted">A short guide for SQA engineers: sample data, common passwords, and feature triggers.</div>
+
+    <div class="section">
+      <strong>Sample Accounts (for login)</strong>
+      <ul style="margin:8px 0 0 16px;padding:0;">
+        <li><span class="kbd">student1@example.com</span> — <em class="muted">Student</em></li>
+        <li><span class="kbd">student2@example.com</span> — <em class="muted">Student</em></li>
+        <li><span class="kbd">instructor@example.com</span> — <em class="muted">Instructor</em></li>
+      </ul>
+      <div style="margin-top:6px;font-size:13px;">Common password for the sample accounts: <span class="kbd">Password123!</span></div>
+    </div>
+
+    <div class="section">
+      <strong>Sample Data</strong>
+      <div class="muted">Seeded sessions & notifications are available via Settings → Quick Test Actions.</div>
+      <ul style="margin:8px 0 0 16px;padding:0;font-size:13px;">
+        <li>Trending sessions: small set of seeded sessions for acceptance tests.</li>
+        <li>Notifications: generated when you join sessions or when reminders are scheduled.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <strong>Notifications / Reminders</strong>
+      <div style="margin-top:6px;font-size:13px;">Notifications are triggered:</div>
+      <ol style="margin:8px 0 0 16px;font-size:13px;">
+        <li>When a user is invited or a session they're part of is updated.</li>
+        <li>Scheduled reminders (24h, 1h, 10m) are created when a session is saved.</li>
+        <li>Use "Seed Test Notifications" in Settings to create test notifications.</li>
+      </ol>
+    </div>
+
+    <div class="section">
+      <strong>SQA Guidance</strong>
+      <ul style="margin:8px 0 0 16px;padding:0;font-size:13px;">
+        <li>Toggle "Simulate Notification Load Error" to test error states for notifications.</li>
+        <li>Use "Simulate Network Error" before creating a session to test save-failure UX.</li>
+        <li>Verify reminders do not duplicate — the app deduplicates by reminder key.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <strong>Out of scope (for tests)</strong>
+      <div class="muted" style="margin-top:6px;">The app uses localStorage-only persistence; no backend integration is included. External calendar sync and real email notifications are out of scope and only simulated.</div>
+    </div>
+  </aside>
+</div>

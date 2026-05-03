@@ -1,0 +1,71 @@
+/* ═══════════════════════════════════════════════════════
+   ACADEMEET — STYLE.CSS
+   Dark academic aesthetic · Electric purple · Deep navy
+═══════════════════════════════════════════════════════ */
+
+/* ── CSS VARIABLES ─────────────────────────────────── */
+:root {
+  --bg-base:       #0a0a14;
+  --bg-surface:    #10101e;
+  --bg-card:       #15152a;
+  --bg-card-hover: #1c1c35;
+  --bg-input:      #1a1a30;
+  --bg-sidebar:    #0d0d1f;
+
+  --accent:        #7c3aed;
+  --accent-bright: #8b5cf6;
+  --accent-glow:   rgba(124,58,237,0.25);
+  --accent-soft:   rgba(139,92,246,0.12);
+
+  --emerald:       #10b981;
+  --emerald-soft:  rgba(16,185,129,0.15);
+  --amber:         #f59e0b;
+  --amber-soft:    rgba(245,158,11,0.15);
+  --rose:          #ef4444;
+  --rose-soft:     rgba(239,68,68,0.12);
+
+  --text-primary:  #e8e8f5;
+  --text-secondary:#a0a0c0;
+  --text-muted:    #64648a;
+
+  --border:        rgba(255,255,255,0.07);
+  --border-accent: rgba(124,58,237,0.4);
+
+  --radius-sm:     6px;
+  --radius-md:     12px;
+  --radius-lg:     18px;
+  --radius-xl:     24px;
+
+  --shadow-card:   0 4px 24px rgba(0,0,0,0.4);
+  --shadow-glow:   0 0 24px rgba(124,58,237,0.3);
+
+  --sidebar-w:     220px;
+  --header-h:      64px;
+
+  --font-display:  'Syne', sans-serif;
+  --font-body:     'DM Sans', sans-serif;
+
+  --transition:    all 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── RESET ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+a { text-decoration: none; color: inherit; cursor: pointer; }
+button { cursor: pointer; font-family: var(--font-body); border: none; background: none; }
+input, textarea, select { font-family: var(--font-body); }
+.hidden { display: none !important; }
+
+/* ── SCROLLBAR ──────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 99px; }
+

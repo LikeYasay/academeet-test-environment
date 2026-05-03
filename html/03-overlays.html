@@ -1,0 +1,18 @@
+<script>
+  // Redirect when this fragment is opened directly in the browser unless ?raw=1 is present.
+  try {
+    const raw = new URLSearchParams(window.location.search).get('raw');
+    if (window.top === window && /\/html\//i.test(window.location.pathname.replace(/\\/g, '/')) && raw !== '1') {
+      window.location.replace('../index.html');
+    }
+  } catch (e) {
+    if (window.top === window && /\/html\//i.test(window.location.pathname.replace(/\\/g, '/'))) window.location.replace('../index.html');
+  }
+</script>
+
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════ MODAL OVERLAY ═══════════════════════════════ -->
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal-box" id="modal-box"></div>
+</div>

@@ -76,8 +76,13 @@ function bindNotificationEvents() {
       if (currentUser) markAsRead(notifId, currentUser.id);
       closeNotifDropdown();
       const s = getSessions().find(x => x.id === sessionId);
-      if (s) navigate('details', s);
-      else toast('Session not found.', 'error');
+      if (s && typeof isPrivateSessionLocked === 'function' && isPrivateSessionLocked(s)) {
+        requestPrivateDetailsAccess(s.id);
+      } else if (s) {
+        navigate('details', s);
+      } else {
+        toast('Session not found.', 'error');
+      }
     }
     if (dismissBtn && currentUser) {
       dismissNotif(dismissBtn.dataset.notifId, currentUser.id);
@@ -249,6 +254,8 @@ function init() {
 // ── Expose functions needed from inline handlers ──
 window.closeModal        = closeModal;
 window.confirmJoin       = confirmJoin;
+window.confirmPrivateDetailsAccess = confirmPrivateDetailsAccess;
+window.requestPrivateDetailsAccess = requestPrivateDetailsAccess;
 window.postReply         = postReply;
 window.removeTag         = removeTag;
 window.removeFile        = removeFile;

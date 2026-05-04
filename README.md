@@ -20,7 +20,7 @@ This repository contains the Activity 08 SQA test environment for AcadeMeet. It 
 - Create public and private sessions (private sessions require a password).
 - Validate required fields: title, date, start and end times.
 - Date/time validations: future date required; start time must be before end time.
-- Location validation: accept free text and common online meeting links (e.g., `https://meet.google.com/...`).
+- Location validation: accept physical locations, and require `http://` or `https://` for common online meeting links.
 - Participant limits: numeric limits should be enforced and validated.
 - Tags: max count and max length enforcement.
 - File/notes upload: accepted types and UI behavior when uploading multiple files.
@@ -29,9 +29,10 @@ This repository contains the Activity 08 SQA test environment for AcadeMeet. It 
 
 - Notification ordering and unread counts.
 - Mark all as read / mark individual as read / dismiss notification.
-- Reminders are scheduled when sessions are saved: typical offsets are 24h, 1h, and 10m before start.
+- Reminders are scheduled when sessions are saved: required offsets are 24h and 1h before start.
 - Verify reminders are deduplicated and not shown repeatedly.
-- Use Settings → Quick Test Actions to seed notifications for testing.
+- Use Settings -> Quick Test Actions to seed notifications for reminder, update, comment, join, cancellation, ordering, and dropdown-cap testing.
+- See `SQA_VERIFICATION.md` for the requirement-to-environment coverage notes.
 
 ### Other Areas
 
@@ -45,7 +46,7 @@ This repository contains the Activity 08 SQA test environment for AcadeMeet. It 
 2. Create a session with valid data; confirm success toast and that session appears in Sessions view.
 3. Toggle "Simulate Network Error" and attempt to create a session — verify error handling and UI.
 4. Seed sample notifications and open the notification dropdown — verify unread counts and ordering.
-5. Create a private session with a password and confirm a participant must enter the password to join.
+5. Create a private session with a password and confirm a participant must enter the password before viewing details or joining.
 6. Verify reminders appear in the Reminders card and that they do not create duplicate toasts.
 
 ## SQA Guidance and Notes

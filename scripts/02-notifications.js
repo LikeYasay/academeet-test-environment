@@ -112,7 +112,7 @@ function scheduleReminder(session, userId, offsetMs, label) {
     const sessions = getSessions();
     const s = sessions.find(x => x.id === session.id);
     if (!s || s.status === 'cancelled') return;
-    const msg = `Reminder: "${s.title}" is coming up ${label} at ${s.startTime}`;
+    const msg = `Reminder: "${s.title}" is coming up ${label} on ${formatDate(s.date)} at ${s.startTime}`;
     const created = addNotif(userId, NOTIF_TYPES.REMINDER, s.id, s.title, msg, {
       sessionDate: s.date,
       sessionTime: s.startTime,
@@ -133,7 +133,27 @@ function scheduleReminder(session, userId, offsetMs, label) {
 
 function scheduleRemindersForUser(session, userId) {
   scheduleReminder(session, userId, REMINDER_1H_MS,  'in 1 hour');
-  scheduleReminder(session, userId, REMINDER_24H_MS, 'tomorrow');
+  scheduleReminder(session, userId, REMINDER_24H_MS, 'in 24 hours');
+}
+
+function sendImmediateReminderIfNeeded(session, userId) {
+  if (!session || session.status === 'cancelled') return false;
+  const startMs = sessionDateTime(session);
+  const timeLeft = startMs - now();
+  if (timeLeft <= 0 || timeLeft >= REMINDER_1H_MS) return false;
+
+  const hasReminder = getActiveNotifs(userId).some(n =>
+    n.type === NOTIF_TYPES.REMINDER && n.sessionId === session.id
+  );
+  if (hasReminder) return false;
+
+  return addNotif(userId, NOTIF_TYPES.REMINDER, session.id, session.title,
+    `Reminder: "${session.title}" is starting soon on ${formatDate(session.date)} at ${session.startTime}`,
+    {
+      sessionDate: session.date,
+      sessionTime: session.startTime,
+      reminderKey: `${session.id}_immediate_${session.date}_${session.startTime}`,
+    });
 }
 
 function checkAndScheduleReminders() {
@@ -167,7 +187,7 @@ function checkAndScheduleReminders() {
       );
       if (!hasImmediate) {
         addNotif(currentUser.id, NOTIF_TYPES.REMINDER, s.id, s.title,
-          `Reminder: "${s.title}" is starting soon at ${s.startTime}`,
+          `Reminder: "${s.title}" is starting soon on ${formatDate(s.date)} at ${s.startTime}`,
           {
             sessionDate: s.date,
             sessionTime: s.startTime,

@@ -15,6 +15,15 @@ function setInputError(inputId, hasError) {
   if (el) el.classList.toggle('error', hasError);
 }
 
+function looksLikeOnlineLocation(value) {
+  const loc = (value || '').trim();
+  return /(https?:\/\/|:\/\/|www\.|\.com\b|zoom|meet|teams)/i.test(loc);
+}
+
+function isValidOnlineLocation(value) {
+  return /^https?:\/\//i.test((value || '').trim());
+}
+
 function validateSession(data) {
   let valid = true;
   clearAllErrors();
@@ -52,9 +61,9 @@ function validateSession(data) {
     setErr('err-location', 'Location or link is required.'); setInputError('f-location',true); valid = false;
   } else {
     setInputError('f-location', false);
-    // TC-AM-014: URL validation
+    // TC-AM-014: URL validation for common online-meeting entries.
     const loc = data.location.trim();
-    if (loc.includes('://') && !loc.startsWith('http://') && !loc.startsWith('https://')) {
+    if (looksLikeOnlineLocation(loc) && !isValidOnlineLocation(loc)) {
       setErr('err-location', 'URL must start with http:// or https://'); setInputError('f-location',true); valid = false;
     }
   }
@@ -81,6 +90,22 @@ function validateSession(data) {
     } else if (lim <= 2 || lim >= 100) {
       setErr('err-limit', 'Participant limit must be greater than 2 and less than 100.'); setInputError('f-limit',true); valid = false;
     } else { setInputError('f-limit', false); }
+  }
+
+  const tags = (data.tags || []).map(t => t.trim()).filter(Boolean);
+  if (tags.length > 5) {
+    setErr('err-tags', 'Maximum 5 tags allowed.'); valid = false;
+  } else if (tags.some(t => t.length > 20)) {
+    setErr('err-tags', 'Each tag must be 20 characters or less.'); valid = false;
+  }
+
+  const badFile = (data.files || []).find(f => {
+    const ext = f.ext || ('.' + String(f.name || '').split('.').pop().toLowerCase());
+    return f.size > MAX_FILE_BYTES || !ALLOWED_EXT.includes(ext);
+  });
+  if (badFile) {
+    setErr('err-files', 'Only .pdf, .docx, .txt, .jpg, and .png files up to 10MB are allowed.');
+    valid = false;
   }
 
   return valid;
@@ -290,7 +315,12 @@ function attachCardListeners(container) {
     card.addEventListener('click', e => {
       if (e.target.classList.contains('session-join-btn')) return;
       const s = getSessions().find(x => x.id === id);
-      if (s) navigate('details', s);
+      if (!s) return;
+      if (isPrivateSessionLocked(s)) {
+        requestPrivateDetailsAccess(s.id);
+        return;
+      }
+      navigate('details', s);
     });
     // Join button
     const joinBtn = card.querySelector('.session-join-btn');
@@ -306,6 +336,41 @@ function attachCardListeners(container) {
 /* ─────────────────────────────────────────────────────
    19. JOINING A SESSION
 ───────────────────────────────────────────────────── */
+function isPrivateSessionLocked(session) {
+  if (!currentUser || !session || session.visibility !== 'private') return false;
+  const joined = getJoined(currentUser.id);
+  return session.hostId !== currentUser.id && !joined.includes(session.id);
+}
+
+function requestPrivateDetailsAccess(sessionId) {
+  const session = getSessions().find(s => s.id === sessionId);
+  if (!session) return;
+  openModal(`
+    <h3 class="modal-title">Private Session</h3>
+    <p class="modal-desc">Enter the session password to view <strong>${sanitize(session.title)}</strong>.</p>
+    <div class="modal-form-group">
+      <label class="modal-label">Password</label>
+      <input type="password" id="details-password-input" class="form-input" placeholder="Enter password">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmPrivateDetailsAccess('${sessionId}')">View Session</button>
+    </div>
+  `);
+}
+
+function confirmPrivateDetailsAccess(sessionId) {
+  const pw = document.getElementById('details-password-input')?.value || '';
+  const session = getSessions().find(s => s.id === sessionId);
+  if (!session) { closeModal(); return; }
+  if (pw !== session.password) {
+    toast('Incorrect password.', 'error');
+    return;
+  }
+  closeModal();
+  navigate('details', session);
+}
+
 function handleJoin(sessionId) {
   const sessions = getSessions();
   const session  = sessions.find(s => s.id === sessionId);
@@ -353,6 +418,10 @@ function doJoin(sessionId) {
   const session  = sessions.find(s => s.id === sessionId);
   if (!session) return;
 
+  if (session.participantLimit && session.participants.length >= session.participantLimit) {
+    toast('This session is full.', 'error'); return;
+  }
+
   // Already joined
   const joined = getJoined(currentUser.id);
   if (joined.includes(sessionId)) { toast('You have already joined this session.', 'info'); return; }
@@ -374,10 +443,11 @@ function doJoin(sessionId) {
 
   // TC-AM-005 (F2): Notify host about new participant
   addNotif(session.hostId, NOTIF_TYPES.JOINED, session.id, session.title,
-    `${currentUser.name} joined your session "${session.title}"`);
+    `New participant joined: ${currentUser.name} joined your session "${session.title}"`);
 
   // Schedule reminders for this user
   scheduleRemindersForUser(session, currentUser.id);
+  sendImmediateReminderIfNeeded(session, currentUser.id);
 
   toast(`Joined "${session.title}" successfully!`, 'success');
   renderSessions();
@@ -696,13 +766,23 @@ function saveEditSession(sessionId) {
   s.endTime     = document.getElementById('edit-end').value   || s.endTime;
   s.location    = document.getElementById('edit-loc').value.trim() || s.location;
   s.description = document.getElementById('edit-overview').value.trim();
+
+  if (s.startTime >= s.endTime) {
+    toast('Start time must be earlier than end time.', 'error');
+    return;
+  }
+  if (looksLikeOnlineLocation(s.location) && !isValidOnlineLocation(s.location)) {
+    toast('Online meeting links must start with http:// or https://', 'error');
+    return;
+  }
+
   s.updatedAt   = now();
   saveSessions(sessions);
 
   // TC-AM-003 (F2): Notify all participants of update
   s.participants.forEach(pid => {
     addNotif(pid, NOTIF_TYPES.UPDATE, s.id, s.title,
-      `Session "${s.title}" details have been updated by the host`);
+      `Updated session details for "${s.title}" by the host`);
   });
 
   closeModal();
@@ -858,6 +938,7 @@ function seedSampleSessions() {
   const today = new Date();
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
   const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
   const fmt = d => d.toISOString().slice(0,10);
 
   const samples = [
@@ -871,6 +952,14 @@ function seedSampleSessions() {
     { title:'PRIVATE: Thesis Defense Prep', date:fmt(tomorrow), startTime:'09:00', endTime:'11:00',
       location:'Library Study Room 2', visibility:'private', password:'Thesis@2026', tags:['Thesis'],
       description:'Final preparation for thesis defense presentation.', hue:330 },
+    { title:'Full Database Review', date:fmt(nextWeek), startTime:'15:00', endTime:'16:30',
+      location:'Room 407, Computer Laboratory', visibility:'public', tags:['Database','SQL'],
+      description:'Capacity test session for validating the full badge and disabled join button.', hue:30,
+      participantLimit: 3, hostId:'u2', hostName:'Faith Aligato', participants:['u2','u3','u4'] },
+    { title:'Expired Notification Regression', date:fmt(yesterday), startTime:'09:00', endTime:'10:00',
+      location:'https://meet.google.com/old-test', visibility:'public', tags:['Regression'],
+      description:'Past session used to verify expired/started notification banners.', hue:190,
+      hostId:'u2', hostName:'Faith Aligato', participants:['u1','u2'] },
   ];
 
   const sessions = getSessions();
@@ -888,9 +977,9 @@ function seedSampleSessions() {
       description:    d.description,
       tags:           d.tags,
       files:          [],
-      hostId:         currentUser.id,
-      hostName:       currentUser.name,
-      participants:   [],
+      hostId:         d.hostId || currentUser.id,
+      hostName:       d.hostName || currentUser.name,
+      participants:   d.participants || [],
       comments:       [],
       createdAt:      now(),
       updatedAt:      now(),
@@ -905,19 +994,57 @@ function seedSampleSessions() {
 
 function seedTestNotifications() {
   if (!requireCurrentUser('generate test notifications')) return;
-  const sessions = getSessions();
-  const s = sessions[0];
+  let sessions = getSessions();
+  if (!sessions.length) {
+    seedSampleSessions();
+    sessions = getSessions();
+  }
+  const s = sessions.find(x => x.status !== 'cancelled' && !isSessionExpired(x)) || sessions[0];
+  const expired = sessions.find(x => isSessionExpired(x));
   if (!s) { toast('Create a session first.', 'warning'); return; }
 
   addNotif(currentUser.id, NOTIF_TYPES.REMINDER, s.id, s.title,
-    `Reminder: "${s.title}" is coming up in 1 hour at ${s.startTime || '10:00'}`);
+    `Reminder: "${s.title}" is coming up in 1 hour on ${formatDate(s.date)} at ${s.startTime || '10:00'}`, {
+      sessionDate: s.date,
+      sessionTime: s.startTime,
+      reminderKey: `${s.id}_seed_1h_${s.date}_${s.startTime}`,
+      timestamp: now() - 1000,
+    });
+  addNotif(currentUser.id, NOTIF_TYPES.REMINDER, s.id, s.title,
+    `Reminder: "${s.title}" is coming up in 24 hours on ${formatDate(s.date)} at ${s.startTime || '10:00'}`, {
+      sessionDate: s.date,
+      sessionTime: s.startTime,
+      reminderKey: `${s.id}_seed_24h_${s.date}_${s.startTime}`,
+      timestamp: now() - 2000,
+    });
   addNotif(currentUser.id, NOTIF_TYPES.UPDATE, s.id, s.title,
-    `Session "${s.title}" details have been updated by the host`);
+    `Updated session details for "${s.title}" by the host`, { timestamp: now() - 3000 });
   addNotif(currentUser.id, NOTIF_TYPES.JOINED, s.id, s.title,
-    `John Doe joined your session "${s.title}"`);
+    `New participant joined: John Doe joined your session "${s.title}"`, { timestamp: now() - 4000 });
   addNotif(currentUser.id, NOTIF_TYPES.COMMENT, s.id, s.title,
-    `Faith Aligato commented on your session "${s.title}"`);
-  toast('Test notifications generated!', 'success');
+    `Faith Aligato commented on your session "${s.title}"`, { timestamp: now() - 5000 });
+  addNotif(currentUser.id, NOTIF_TYPES.COMMENT, s.id, s.title,
+    `John Doe replied to your comment in "${s.title}"`, { timestamp: now() - 6000 });
+  addNotif(currentUser.id, NOTIF_TYPES.CANCELLATION, s.id, s.title,
+    `Session "${s.title}" has been cancelled by the host and is no longer available`, { timestamp: now() - 7000 });
+  if (expired) {
+    addNotif(currentUser.id, NOTIF_TYPES.REMINDER, expired.id, expired.title,
+      `Reminder: "${expired.title}" has already started on ${formatDate(expired.date)} at ${expired.startTime}`, {
+        sessionDate: expired.date,
+        sessionTime: expired.startTime,
+        reminderKey: `${expired.id}_seed_expired_${expired.date}_${expired.startTime}`,
+        timestamp: now() - 8000,
+      });
+  }
+
+  for (let i = 1; i <= 30; i += 1) {
+    addNotif(currentUser.id, NOTIF_TYPES.COMMENT, s.id, s.title,
+      `Dropdown cap test ${i}: comment activity for "${s.title}"`, {
+        timestamp: now() - ((i + 10) * 60000),
+      });
+  }
+
+  toast('Test notifications generated for reminder, update, comment, join, cancellation, ordering, and dropdown-cap cases!', 'success');
   refreshNotifUI();
 }
 
